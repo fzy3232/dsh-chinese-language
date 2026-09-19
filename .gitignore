@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+*.tgz
+
+# Many global gitignore files exclude `lib/` and `package.json` as build output.
+# This repository ships both, so re-include them explicitly.
+!package.json
+!lib/
+!lib/index.js

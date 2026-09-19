@@ -1,0 +1,28 @@
+# dsh-chinese-language bundle patch
+#
+# This file is the `dsh.bundle.patch` layer of the published package. When the
+# plugin is installed through the official CLI —
+#
+#   dsh plugin --profile <name> add dsh-chinese-language
+#
+# — the command reconciles `dsh.profile.bundles` against installed packages
+# and, seeing this declaration in package.json, appends `dsh-chinese-language`
+# to the bundle stack. Profile boot then merges this patch, which is a single
+# `insert` of the plugin row. No profile file needs editing by hand.
+#
+# To tune the rule, add `config` to the inserted row (or override this row by
+# `id` from the profile's own cordis.patch.yml with a later layer):
+#
+#   - insert:
+#       - id: dsh-chinese-language
+#         name: dsh-chinese-language
+#         config:
+#           order: 10300
+#           lines:
+#             - 始终使用简体中文回答。
+#
+# A patch replaces the targeted row's whole `config`, so restate every key the
+# row needs whenever an override adds one.
+- insert:
+    - id: dsh-chinese-language
+      name: dsh-chinese-language

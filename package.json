@@ -1,0 +1,49 @@
+{
+  "name": "dsh-chinese-language",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin: append a Simplified-Chinese language rule to the system prompt so agents reason and answer in Chinese, without touching the deployment persona.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "chinese",
+    "system-prompt",
+    "language"
+  ],
+  "license": "MIT",
+  "author": "fzy3232",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fzy3232/dsh-chinese-language.git"
+  },
+  "homepage": "https://github.com/fzy3232/dsh-chinese-language#readme",
+  "bugs": {
+    "url": "https://github.com/fzy3232/dsh-chinese-language/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
