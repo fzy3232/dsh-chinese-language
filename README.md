@@ -145,7 +145,28 @@ For a local mount, look for your file path instead:
   name: file:///Users/you/.dsh/dsh-plugins/chinese-language.mjs
 ```
 
-Then start a new session: the rule reaches the model from the first turn. In a session that is already running, look for the reminder in the runtime-context snapshot shown above the newest message — that is the second channel arriving without a restart.
+Then start a new session: the rule reaches the model from the first turn. In a session that is already running, the reminder arrives on its next step — the runtime-context snapshot the harness shows above the newest message carries a contribution named `user:chinese-language`:
+
+```text
+Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+...
+语言提醒：本轮内部推理与可见回答使用简体中文。
+```
+
+That snapshot is written once and then replaced in place, so the reminder neither accumulates nor repeats: only the changing parts of the snapshot (sandbox state, recalled memory, ...) cause a new one.
+
+## When a channel is unavailable
+
+The two channels degrade independently. The rule never disappears because one of them is missing:
+
+| Situation | Section channel | Reminder channel |
+| --- | --- | --- |
+| Normal | yes | yes |
+| Harness without `systemPrompt.context()` (older than the runtime-context API) | yes | skipped |
+| Deployment sets `includeRuntimeContext: false` on `dsh-system-prompt` | yes | suppressed by the harness |
+| An agent preset claims the prompt with a `complete: true` persona section | **replaced** — the harness restores that section as the sole prompt section | **yes** |
+
+The last row is the reason the reminder exists rather than being a duplicate: a `complete` persona is exactly the case where a section-only language plugin goes silent. Registering one rule through both channels keeps at least one of them in front of the model.
 
 ## Scope and limits
 
@@ -153,7 +174,6 @@ Then start a new session: the rule reaches the model from the first turn. In a s
 - Hidden reasoning is model output. A prompt strongly steers it, but nothing at this layer can give a mathematical guarantee; expect the rule to hold in practice rather than absolutely.
 - Code, commands, file paths, URLs, API names, and verbatim error text are meant to stay in their original form. That is part of the shipped rule.
 - If another plugin registers a section or a context with the same name in the same scope, the loader fails loudly. Change `sectionName` / `contextName` to resolve it.
-- A harness older than the runtime-context API simply keeps the section channel; the plugin skips the second registration instead of failing.
 
 ## Uninstall
 
@@ -165,11 +185,24 @@ For a local mount, delete the `insert` entry from `$DSH_HOME/cordis.patch.yml` a
 
 ## Development
 
-There is no build step and no runtime dependency. `lib/index.js` is the whole plugin; `test/contract.test.mjs` covers the contract with a stubbed context.
+There is no build step and no runtime dependency. `lib/index.js` is the whole plugin.
 
 ```sh
-npm test
+npm test          # node --test: contract + manifest (+ real-harness when available)
 node --check lib/index.js
+```
+
+| Suite | What it covers |
+| --- | --- |
+| `test/contract.test.mjs` | Both channels, every config key, the older-harness path, the steady-state token budget |
+| `test/manifest.test.mjs` | `npm pack --dry-run` carries the module, the patch, the READMEs and the license |
+| `test/rc2-integration.test.mjs` | Assembles against the real `@deepseek-ai/dsh-system-prompt`: section last, reminder in the snapshot, `complete` persona, suppressed runtime context |
+
+The third suite imports `@deepseek-ai/*`, which lives in a dsh profile rather than here, so it reports as **skipped** unless those packages resolve. To run it for real, point the checkout at an installed profile (the link is ignored by git):
+
+```sh
+ln -sfn "$DSH_HOME/profiles/web/node_modules" node_modules
+npm test
 ```
 
 To exercise it against a real tree, mount it with the local-mount recipe above and re-run `dsh --profile web --dump-config`.

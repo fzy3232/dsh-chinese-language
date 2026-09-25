@@ -141,3 +141,22 @@ test("unusable values fall back instead of failing the loader entry", () => {
 	assert.equal(calls.sections[0].name, DEFAULT_SECTION_NAME);
 	assert.equal(calls.contexts[0].order, DEFAULT_CONTEXT_ORDER);
 });
+
+test("channel toggles accept the values a YAML patch can produce", () => {
+	const empty = fakeContext();
+	apply(empty.ctx, { section: "", context: 0 });
+	assert.equal(empty.calls.sections[0].name, DEFAULT_SECTION_NAME);
+	assert.equal(empty.calls.sections.length, 1);
+	assert.equal(empty.calls.contexts.length, 1);
+
+	const untrue = fakeContext();
+	apply(untrue.ctx, { section: "false", context: "false" });
+	assert.equal(untrue.calls.sections[0].name, "false");
+	assert.equal(untrue.calls.contexts[0].name, "false");
+});
+
+test("only strings and string arrays are accepted as text", () => {
+	assert.equal(resolveConfig({ lines: "一行" }).text, DEFAULT_LINES.join("\n"));
+	assert.equal(resolveConfig({ text: () => "一行" }).text, DEFAULT_LINES.join("\n"));
+	assert.equal(resolveConfig({ contextText: 42 }).contextText, DEFAULT_CONTEXT_TEXT);
+});

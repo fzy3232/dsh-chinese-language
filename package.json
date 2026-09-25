@@ -14,17 +14,19 @@
     "cordis.patch.yml",
     "README.md",
     "README.zh.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
     "check": "node --check lib/index.js",
-    "test": "node --test test/contract.test.mjs"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
   },
   "keywords": [
     "dsh",
+    "dsh-plugin",
     "deepseek-harness",
     "cordis",
     "plugin",

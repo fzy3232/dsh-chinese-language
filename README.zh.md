@@ -145,7 +145,28 @@ dsh --profile web --dump-config | grep -A2 dsh-chinese-language
   name: file:///Users/you/.dsh/dsh-plugins/chinese-language.mjs
 ```
 
-然后新建会话：规则从第一轮就进入模型。已经在跑的会话，看最新一条消息上方的运行时上下文快照里有没有那条提醒——那是第二个通道在不重启的情况下到达。
+然后新建会话：规则从第一轮就进入模型。已经在跑的会话，提醒会在它的下一步到达——harness 显示在最新一条消息上方的运行时上下文快照里，会有一条名为 `user:chinese-language` 的贡献：
+
+```text
+Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+...
+语言提醒：本轮内部推理与可见回答使用简体中文。
+```
+
+这份快照是**写一次、原地替换**的：只有快照里真正变化的部分（沙箱状态、召回的灵枢记忆……）才会触发重写，所以那条提醒既不会累积，也不会每步重复。
+
+## 通道不可用时会怎样
+
+两个通道各自独立降级，任何一路缺失都不会让规则整体消失：
+
+| 情形 | 段落通道 | 提醒通道 |
+| --- | --- | --- |
+| 正常 | 有 | 有 |
+| harness 没有 `systemPrompt.context()`（早于 runtime context API） | 有 | 跳过 |
+| 部署在 `dsh-system-prompt` 上设了 `includeRuntimeContext: false` | 有 | 被 harness 抑制 |
+| 某个 agent preset 用 `complete: true` 的人设段落接管提示词 | **被取代**——harness 会把那个段落恢复成唯一的 prompt 段落 | **仍然有** |
+
+最后一行正是这条提醒存在的理由，而不是重复：`complete` 人设恰好是"只注入段落"的语言插件彻底失声的场景。同一条规则走两个通道，才能保证至少有一路留在模型面前。
 
 ## 作用范围与边界
 
@@ -153,7 +174,6 @@ dsh --profile web --dump-config | grep -A2 dsh-chinese-language
 - 隐藏推理是模型的输出。prompt 能强力引导它，但这一层给不出数学意义上的绝对保证——实际表现是"稳定遵守"，而不是"不可能违反"。
 - 代码、命令、文件路径、URL、API 名称和报错原文保持原样，这是内置规则的一部分。
 - 如果别的插件在同一作用域注册了同名段落或同名上下文，加载器会显式报错。改 `sectionName` / `contextName` 即可。
-- 比 runtime context API 更老的 harness 会只保留段落通道：插件跳过第二个注册，而不是加载失败。
 
 ## 卸载
 
@@ -165,11 +185,24 @@ dsh plugin --profile web remove dsh-chinese-language
 
 ## 开发
 
-没有构建步骤，没有运行时依赖。`lib/index.js` 就是整个插件；`test/contract.test.mjs` 用桩上下文覆盖契约。
+没有构建步骤，没有运行时依赖。`lib/index.js` 就是整个插件。
 
 ```sh
-npm test
+npm test          # node --test：契约 + 打包（本机装有真实依赖时还会跑真实 harness 套件）
 node --check lib/index.js
+```
+
+| 测试文件 | 覆盖内容 |
+| --- | --- |
+| `test/contract.test.mjs` | 两个通道、全部配置键、老 harness 路径、稳态 token 预算 |
+| `test/manifest.test.mjs` | `npm pack --dry-run` 是否带上模块、patch、两个 README 与许可证 |
+| `test/rc2-integration.test.mjs` | 对着真实 `@deepseek-ai/dsh-system-prompt` 组装：段落排在最后、提醒进入快照、`complete` 人设、抑制运行时上下文 |
+
+第三个套件 import 的 `@deepseek-ai/*` 装在 dsh profile 里而不是本仓库，所以**解析不到时会显示 skipped**，不会让 CI 变红。要在本机真正跑它，把仓库指向已安装的 profile（该软链已被 git 忽略）：
+
+```sh
+ln -sfn "$DSH_HOME/profiles/web/node_modules" node_modules
+npm test
 ```
 
 要在真实插件树里验证，用上面的本地挂载配方挂上，再跑一次 `dsh --profile web --dump-config`。
