@@ -18,6 +18,11 @@
 - Tests: contract coverage for both channels, the older-harness path and the
   token budget; a real-harness suite that skips when `@deepseek-ai/*` is not
   installed; a packaging test running `npm pack --dry-run`.
+- Verified against every `@deepseek-ai/dsh-system-prompt` release installed on
+  the development machine — `0.1.5-rc.2`, `0.1.5-rc.3`, `0.1.7-rc.1` and
+  `0.1.7-rc.2` — where both channels mount and the section stays last. The same
+  walk is part of the test suite, so a future release that moves the API fails
+  locally instead of silently.
 
 ## 0.1.0
 

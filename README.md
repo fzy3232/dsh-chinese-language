@@ -168,6 +168,8 @@ The two channels degrade independently. The rule never disappears because one of
 
 The last row is the reason the reminder exists rather than being a duplicate: a `complete` persona is exactly the case where a section-only language plugin goes silent. Registering one rule through both channels keeps at least one of them in front of the model.
 
+Both channels were exercised against every `@deepseek-ai/dsh-system-prompt` release installed on the development machine — `0.1.5-rc.2`, `0.1.5-rc.3`, `0.1.7-rc.1` and `0.1.7-rc.2` — and mount identically on each, with the section staying last. Releases older than `0.1.5-rc.2` are untested; they keep the section channel and skip the reminder.
+
 ## Scope and limits
 
 - This constrains the **prompt** — the system section plus the runtime-context snapshot — which is what the model reads before it starts reasoning. It is not a token-level filter.
@@ -196,7 +198,7 @@ node --check lib/index.js
 | --- | --- |
 | `test/contract.test.mjs` | Both channels, every config key, the older-harness path, the steady-state token budget |
 | `test/manifest.test.mjs` | `npm pack --dry-run` carries the module, the patch, the READMEs and the license |
-| `test/rc2-integration.test.mjs` | Assembles against the real `@deepseek-ai/dsh-system-prompt`: section last, reminder in the snapshot, `complete` persona, suppressed runtime context |
+| `test/rc2-integration.test.mjs` | Assembles against the real `@deepseek-ai/dsh-system-prompt`: section last, reminder in the snapshot, `complete` persona, suppressed runtime context, and every release found in the profile's pnpm store |
 
 The third suite imports `@deepseek-ai/*`, which lives in a dsh profile rather than here, so it reports as **skipped** unless those packages resolve. To run it for real, point the checkout at an installed profile (the link is ignored by git):
 

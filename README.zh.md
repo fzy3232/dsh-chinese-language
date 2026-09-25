@@ -168,6 +168,8 @@ Current runtime context. This snapshot supersedes earlier runtime-context snapsh
 
 最后一行正是这条提醒存在的理由，而不是重复：`complete` 人设恰好是"只注入段落"的语言插件彻底失声的场景。同一条规则走两个通道，才能保证至少有一路留在模型面前。
 
+两个通道都在开发机上装过的每一代 `@deepseek-ai/dsh-system-prompt` 上实测过——`0.1.5-rc.2`、`0.1.5-rc.3`、`0.1.7-rc.1`、`0.1.7-rc.2`——每一代的挂载行为一致，段落都排在最后。早于 `0.1.5-rc.2` 的版本未经验证：它们会保留段落通道、跳过提醒通道。
+
 ## 作用范围与边界
 
 - 它约束的是 **prompt**——system prompt 段落加上 runtime context 快照——也就是模型开始推理前读到的东西，不是一个 token 级过滤器。
@@ -196,7 +198,7 @@ node --check lib/index.js
 | --- | --- |
 | `test/contract.test.mjs` | 两个通道、全部配置键、老 harness 路径、稳态 token 预算 |
 | `test/manifest.test.mjs` | `npm pack --dry-run` 是否带上模块、patch、两个 README 与许可证 |
-| `test/rc2-integration.test.mjs` | 对着真实 `@deepseek-ai/dsh-system-prompt` 组装：段落排在最后、提醒进入快照、`complete` 人设、抑制运行时上下文 |
+| `test/rc2-integration.test.mjs` | 对着真实 `@deepseek-ai/dsh-system-prompt` 组装：段落排在最后、提醒进入快照、`complete` 人设、抑制运行时上下文，以及 profile 的 pnpm store 里找到的每一代版本 |
 
 第三个套件 import 的 `@deepseek-ai/*` 装在 dsh profile 里而不是本仓库，所以**解析不到时会显示 skipped**，不会让 CI 变红。要在本机真正跑它，把仓库指向已安装的 profile（该软链已被 git 忽略）：
 
