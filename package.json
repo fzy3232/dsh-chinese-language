@@ -1,7 +1,7 @@
 {
   "name": "dsh-chinese-language",
-  "version": "0.1.0",
-  "description": "DeepSeek Harness plugin: append a Simplified-Chinese language rule to the system prompt so agents reason and answer in Chinese, without touching the deployment persona.",
+  "version": "0.2.0",
+  "description": "DeepSeek Harness plugin: keep agents reasoning and answering in Simplified Chinese with a token-lean system-prompt section plus a one-line runtime-context reminder that also reaches long or resumed sessions.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -16,6 +16,10 @@
     "README.zh.md",
     "LICENSE"
   ],
+  "scripts": {
+    "check": "node --check lib/index.js",
+    "test": "node --test test/contract.test.mjs"
+  },
   "engines": {
     "node": ">=20"
   },
@@ -26,6 +30,7 @@
     "plugin",
     "chinese",
     "system-prompt",
+    "runtime-context",
     "language"
   ],
   "license": "MIT",

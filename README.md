@@ -1,6 +1,6 @@
 # dsh-chinese-language
 
-Make a DeepSeek Harness (`dsh`) agent think and answer in Simplified Chinese — as a late, additive system-prompt section, without touching the deployment persona.
+Make a DeepSeek Harness (`dsh`) agent think and answer in Simplified Chinese — through a token-lean system-prompt section plus a one-line runtime-context reminder, without touching the deployment persona.
 
 English | [中文](README.zh.md)
 
@@ -10,23 +10,45 @@ English | [中文](README.zh.md)
 
 DeepSeek Harness ships an English-first system prompt. The model's hidden reasoning follows that prompt, and the visible answer follows the reasoning, so unless something explicitly says otherwise a long session drifts into English.
 
-Telling the agent "answer in Chinese" in every message works, but it is per-session, easy to forget, and gone the moment you resume in a new window. This plugin states the rule once, in the place the model always reads: the end of the assembled system prompt.
+Telling the agent "answer in Chinese" in every message works, but it is per-session, easy to forget, and gone the moment you resume in a new window. This plugin states the rule where the model always reads it.
 
 ## What it does
 
-- Registers **one** prompt section named `user:chinese-language` at order `10300`.
-- Lands after `deployment:persona-suffix` (order `10200`), i.e. at the very end of the assembled system prompt.
-- Is purely additive: it never replaces `personaPrefix` / `personaSuffix`, never rewrites a tool, skill, or workspace-instruction row, and never reorders a first-party section.
-- Covers every agent that inherits the mounting scope. Mounted at the root it reaches every session and every subagent that joins it.
+The plugin registers one rule through **two channels** with different token profiles:
 
-The default rule is four lines:
+| Channel | Where it lands | Cost |
+| --- | --- | --- |
+| System-prompt section `user:chinese-language`, order `10300` | after `deployment:persona-suffix` (order `10200`), i.e. the very end of the assembled system prompt | Resent with every request; kept short for that reason |
+| Runtime-context reminder `user:chinese-language`, order `100` | the dynamic-context snapshot the harness projects next to the newest messages | Persisted once and retained: the harness writes a new snapshot only when the text changes, and this text is static |
+
+Why both: a fresh session is covered by the section alone. A long or resumed session carries a history full of English reasoning, where a single rule at the head of that history loses influence — the runtime-context reminder restates it next to the live conversation, which is what makes an **already-running session** pick the rule up without being restarted.
+
+Both registrations are purely additive: the plugin never replaces `personaPrefix` / `personaSuffix`, never rewrites a tool, skill, or workspace-instruction row, and never reorders a first-party section. It covers every agent that inherits the mounting scope, so a root mount reaches every session and every subagent that joins it.
+
+The default section is two lines, and the reminder is one shorter line:
 
 ```text
-语言规则：始终使用简体中文进行内部推理、计划、工具说明和最终回答。
-代码、命令、文件路径、URL、API 名称、错误原文和专有名词保留原文。
-不要使用英文进行分析、解释或组织答案。
-最终语言检查：输出前确认内部推理和可见回答均使用简体中文。
+语言规则：始终使用简体中文进行内部推理（thinking）与最终回答，历史内容为英文时同样适用。
+代码、命令、路径、URL、报错原文和专有名词保留原文。
 ```
+
+```text
+语言提醒：本轮内部推理与可见回答使用简体中文。
+```
+
+### Token budget
+
+| Version | Steady-state default text |
+| --- | --- |
+| 0.1.0 (section only, four lines) | ~148 characters |
+| 0.2.0 (two lines + one reminder line) | ~99 characters |
+
+Two properties keep the cost flat:
+
+- The section text is short, and it sits at a stable position inside the prompt prefix, so it does not invalidate the prefix cache.
+- The runtime-context text never changes, so the harness persists it once and keeps reusing that message. It does not accumulate per step, and it adds no per-turn reminder text.
+
+Turn the reminder off entirely with `context: false` if you want the absolute minimum; on the `0.1.7` line the old behavior is exactly `context: false` plus a four-line `lines` list.
 
 ## Install
 
@@ -65,18 +87,36 @@ Then add one `insert` to `$DSH_HOME/cordis.patch.yml` (create the file if it doe
       name: ./dsh-plugins/chinese-language.mjs
 ```
 
+## Upgrading
+
+A GitHub dependency is pinned to the installed commit, so a running profile keeps the old build until you refresh it:
+
+```sh
+dsh plugin --profile web update dsh-chinese-language
+dsh web   # restart the profile to load the new module
+```
+
+Already-running sessions keep the system prompt they were assembled with; the runtime-context reminder reaches them on their next step after the restart.
+
 ## Configuration
 
 Every field is optional. Unknown keys are ignored, and an unusable value falls back to that key's default instead of failing the loader entry.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `lines` | the four built-in rules | Rule lines, joined with newlines. Empty or non-string entries are dropped. |
+| `lines` | the two built-in rules | Section lines, joined with newlines. Empty or non-string entries are dropped. |
 | `text` | - | Replaces `lines` entirely when non-empty. Wins over `lines`. |
-| `order` | `10300` | Prompt-section sort order. Anything above `10200` lands after the first-party sections. |
-| `section` | `user:chinese-language` | Section name. Must stay unique within the scope; a duplicate name throws. |
+| `order` | derived, else `10300` | Section sort order. Anything above `10200` lands after the first-party sections. |
+| `section` | enabled, named `user:chinese-language` | Either `false` to skip the section channel, or a string naming it. |
+| `sectionName` | `user:chinese-language` | Section name. Must stay unique within the scope; a duplicate name throws. |
+| `contextText` | the one-line reminder | Replaces the reminder text without touching the section text. |
+| `context` | enabled, named `user:chinese-language` | Either `false` to skip the reminder, or a string naming it. |
+| `contextName` | `user:chinese-language` | Reminder name, unique within the scope. |
+| `contextOrder` | derived, else `100` | Reminder sort order; lower values print earlier in the snapshot. |
 
-Example, keeping the section but tightening the wording:
+On harnesses that expose `getSectionOrder()` / `getContextOrder()`, the two orders are derived from `DEPLOYMENT_PERSONA_SUFFIX` and `SANDBOX_POLICY`, so they still track the registry if those slots move. Older harnesses use the constants.
+
+Example, keeping both channels but tightening the wording:
 
 ```yaml
 - insert:
@@ -86,6 +126,7 @@ Example, keeping the section but tightening the wording:
         lines:
           - 始终使用简体中文回答。
           - 代码、命令和报错原文保留原文。
+        contextText: 提醒：用简体中文。
 ```
 
 A patch replaces the targeted row's whole `config`, so restate every key the row needs whenever an override adds one.
@@ -104,14 +145,15 @@ For a local mount, look for your file path instead:
   name: file:///Users/you/.dsh/dsh-plugins/chinese-language.mjs
 ```
 
-Then start a new session: the rule reaches the model from the first turn, with no per-message reminder.
+Then start a new session: the rule reaches the model from the first turn. In a session that is already running, look for the reminder in the runtime-context snapshot shown above the newest message — that is the second channel arriving without a restart.
 
 ## Scope and limits
 
-- This constrains the **system prompt**, which is what the model reads before it starts reasoning. It is not a token-level filter.
+- This constrains the **prompt** — the system section plus the runtime-context snapshot — which is what the model reads before it starts reasoning. It is not a token-level filter.
 - Hidden reasoning is model output. A prompt strongly steers it, but nothing at this layer can give a mathematical guarantee; expect the rule to hold in practice rather than absolutely.
 - Code, commands, file paths, URLs, API names, and verbatim error text are meant to stay in their original form. That is part of the shipped rule.
-- If another plugin registers a section with the same name in the same scope, the loader fails loudly. Change `section` to resolve it.
+- If another plugin registers a section or a context with the same name in the same scope, the loader fails loudly. Change `sectionName` / `contextName` to resolve it.
+- A harness older than the runtime-context API simply keeps the section channel; the plugin skips the second registration instead of failing.
 
 ## Uninstall
 
@@ -123,11 +165,11 @@ For a local mount, delete the `insert` entry from `$DSH_HOME/cordis.patch.yml` a
 
 ## Development
 
-There is no build step and no runtime dependency. `lib/index.js` is the whole plugin.
+There is no build step and no runtime dependency. `lib/index.js` is the whole plugin; `test/contract.test.mjs` covers the contract with a stubbed context.
 
 ```sh
+npm test
 node --check lib/index.js
-node -e "import('./lib/index.js').then(m => console.log(m.name, m.inject))"
 ```
 
 To exercise it against a real tree, mount it with the local-mount recipe above and re-run `dsh --profile web --dump-config`.

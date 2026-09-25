@@ -10,6 +10,14 @@
 # to the bundle stack. Profile boot then merges this patch, which is a single
 # `insert` of the plugin row. No profile file needs editing by hand.
 #
+# The row registers two channels from one rule:
+#
+#   * a system-prompt section after `deployment:persona-suffix` (order 10300),
+#     which is resent with every request and therefore kept short;
+#   * a runtime-context reminder (order 100), which the harness persists once
+#     and keeps next to the live conversation, so long or resumed sessions see
+#     the rule near the current turn instead of only at session start.
+#
 # To tune the rule, add `config` to the inserted row (or override this row by
 # `id` from the profile's own cordis.patch.yml with a later layer):
 #
@@ -17,12 +25,15 @@
 #       - id: dsh-chinese-language
 #         name: dsh-chinese-language
 #         config:
-#           order: 10300
 #           lines:
 #             - 始终使用简体中文回答。
+#           contextText: 提醒：用简体中文。
+#           context: true
 #
-# A patch replaces the targeted row's whole `config`, so restate every key the
-# row needs whenever an override adds one.
+# Turn the runtime-context channel off with `context: false`; turn the
+# system-prompt section off with `section: false`. A patch replaces the targeted
+# row's whole `config`, so restate every key the row needs whenever an override
+# adds one.
 - insert:
     - id: dsh-chinese-language
       name: dsh-chinese-language

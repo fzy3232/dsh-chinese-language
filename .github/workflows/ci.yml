@@ -18,21 +18,8 @@ jobs:
       - name: Syntax check
         run: node --check lib/index.js
 
-      - name: Plugin contract
-        run: |
-          node --input-type=module -e "
-          import('./lib/index.js').then((m) => {
-            if (typeof m.apply !== 'function') throw new Error('apply export missing');
-            if (!Array.isArray(m.inject) || !m.inject.includes('systemPrompt')) throw new Error('inject must request systemPrompt');
-            if (!Array.isArray(m.DEFAULT_LINES) || m.DEFAULT_LINES.length === 0) throw new Error('DEFAULT_LINES missing');
-            const seen = [];
-            m.apply({ effect: (fn) => fn(), systemPrompt: { section: (s) => { seen.push(s); return () => {}; } } }, {});
-            if (seen.length !== 1) throw new Error('apply must register exactly one section');
-            if (seen[0].name !== m.DEFAULT_SECTION_NAME) throw new Error('unexpected section name');
-            if (seen[0].order !== m.DEFAULT_ORDER) throw new Error('unexpected section order');
-            console.log('ok', m.name, seen[0].name, seen[0].order);
-          });
-          "
+      - name: Contract tests
+        run: node --test test/contract.test.mjs
 
       - name: Package manifest
         run: node -e "const p = require('./package.json'); if (!p.dsh?.bundle?.patch) throw new Error('dsh.bundle.patch missing'); console.log('bundle patch:', p.dsh.bundle.patch);"
